@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="toast.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Subject Results</h1>
+        <h2 id="subjectNameDisplay" style="color: #3498db; text-align: center;"></h2>
+        
+        <div class="result-card">
+            <h2 id="scoreDisplay"></h2>
+            <p id="percentageDisplay"></p>
+            <p id="statusDisplay"></p>
+        </div>
+
+        <!-- NEW: Question Review Section -->
+        <div id="reviewSection" class="review-section hidden">
+            <h3> Question Review & Answers</h3>
+            <div id="reviewList"></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="window.location.href='student.html'">Back to Dashboard</button>
+            <button class="secondary" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) window.location.href = 'index.html';
+
+        const params = new URLSearchParams(window.location.search);
+        const score = params.get('score');
+        const total = params.get('total');
+        const percentage = params.get('percentage');
+        const subject = params.get('subject');
+
+        document.getElementById('subjectNameDisplay').innerText = subject ? `Subject: ${subject}` : '';
+        document.getElementById('scoreDisplay').innerText = `You scored ${score} out of ${total}`;
+        document.getElementById('percentageDisplay').innerText = `Percentage: ${percentage}%`;
+        
+        const statusEl = document.getElementById('statusDisplay');
+        if (percentage >= 50) {
+            statusEl.innerText = "Congratulations! You Passed.";
+            statusEl.className = "pass";
+        } else {
+            statusEl.innerText = "Unfortunately, you did not pass. Keep studying!";
+            statusEl.className = "fail";
+        }
+
+        // --- NEW: Render the Question Review ---
+        const resultData = JSON.parse(localStorage.getItem('lastQuizResult'));
+        if (resultData && resultData.gradedAnswers) {
+            document.getElementById('reviewSection').classList.remove('hidden');
+            const reviewList = document.getElementById('reviewList');
+            reviewList.innerHTML = '';
+
+            resultData.gradedAnswers.forEach((item, index) => {
+                const div = document.createElement('div');
+                // Add 'correct' or 'incorrect' class for the colored border
+                div.className = `review-card ${item.isCorrect ? 'correct' : 'incorrect'}`;
+                
+                const studentAnsText = item.studentAnswer ? item.studentAnswer : 'No answer selected';
+                const studentAnsClass = item.isCorrect ? 'text-green' : 'text-red';
+
+                div.innerHTML = `
+                    <div class="review-question">Q${index + 1}: ${item.questionText}</div>
+                    <div class="review-answer ${studentAnsClass}">Your Answer: ${studentAnsText}</div>
+                    <div class="review-answer text-green">Correct Answer: ${item.correctAnswer}</div>
+                `;
+                reviewList.appendChild(div);
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem('user');
+            localStorage.removeItem('lastQuizResult'); // Clear review data on logout
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

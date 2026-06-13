@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Platform - Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Quiz Platform Login</h1>
+        <form onsubmit="login(); return false;">
+        <div class="form-group">
+            <label>Role</label>
+            <select id="role" onchange="togglePasswordField()">
+                <option value="student">Student</option>
+                <option value="lecturer">Lecturer</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="username" placeholder="Enter your full name (e.g., Nchang Gisel)" autocomplete="name">
+        </div>
+        <div class="form-group" id="passwordGroup" style="display: none;">
+            <label>Lecturer Password</label>
+            <input type="password" id="password" placeholder="Enter lecturer password" autocomplete="current-password">
+        </div>
+        <button type="submit">Login</button>
+        <p id="error" style="color: red; text-align: center;"></p>
+        </form>
+    </div>
+
+    <script>
+        function togglePasswordField() {
+            const role = document.getElementById('role').value;
+            const group = document.getElementById('passwordGroup');
+            const input = document.getElementById('password');
+            if (role === 'lecturer') {
+                group.style.display = '';
+                input.required = true;
+            } else {
+                group.style.display = 'none';
+                input.value = '';
+                input.required = false;
+            }
+            document.getElementById('error').innerText = '';
+        }
+
+        async function login() {
+            const role = document.getElementById('role').value;
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('error');
+            errorEl.innerText = '';
+
+            if (!username) {
+                errorEl.innerText = 'Please enter your full name.';
+                return;
+            }
+            if (role === 'lecturer' && !password) {
+                errorEl.innerText = 'Please enter the lecturer password.';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, role, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('user', JSON.stringify(data));
+                    window.location.href = role === 'lecturer' ? 'lecturer.html' : 'student.html';
+                } else {
+                    errorEl.innerText = data.message;
+                }
+            } catch (err) {
+                errorEl.innerText = 'Network error. Please try again.';
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') login();
+        });
+    </script>
+</body>
+</html>

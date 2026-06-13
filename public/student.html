@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Take Quiz</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="toast.js"></script>
+</head>
+<body>
+    <div id="timer" class="timer hidden">Time Left: 00:00</div>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h1 id="quizTitle" style="margin: 0; text-align: left;">Student Dashboard</h1>
+            <button id="logoutBtn" class="secondary" onclick="logout()" style="width: auto;">Logout</button>
+        </div>
+        <p id="welcomeMsg"></p>
+
+        <div id="subjectListArea">
+            <h3>Available Subjects</h3>
+            <input type="text" id="subjectSearch" placeholder="Search subjects..." oninput="filterSubjects()" style="margin-bottom: 12px;">
+            <div id="subjectList" class="subject-list">Loading subjects...</div>
+        </div>
+
+        <div id="quizArea" class="hidden">
+            <div id="progressArea">
+                <div id="progressLabel" class="progress-label"></div>
+                <div class="progress-bar-track">
+                    <div id="progressBar" class="progress-bar-fill"></div>
+                </div>
+                <div id="dotIndicators" class="dot-row"></div>
+            </div>
+            <div id="questionContainer"></div>
+            <div class="nav-buttons">
+                <button class="secondary" id="prevBtn" onclick="changeQuestion(-1)">Previous</button>
+                <button class="secondary" id="nextBtn" onclick="changeQuestion(1)">Next</button>
+            </div>
+            <br>
+            <button class="danger" onclick="submitQuiz()">Submit Quiz</button>
+        </div>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role !== 'student') window.location.href = 'index.html';
+        document.getElementById('welcomeMsg').innerText = `Welcome, ${user.username}!`;
+
+        let currentQuiz = null;
+        let currentQuestionIndex = 0;
+        let userAnswers = {};
+        let timerInterval = null;
+        let timeLeft = 0;
+
+        async function loadSubjects() {
+            const listContainer = document.getElementById('subjectList');
+            try {
+                const res = await fetch('/api/quizzes');
+                const data = await res.json();
+                if (!res.ok) {
+                    listContainer.innerHTML = `<p style="color:red;">Error: ${data.error || 'Failed to load subjects.'}</p>`;
+                    return;
+                }
+                if (!Array.isArray(data) || data.length === 0) {
+                    listContainer.innerHTML = '<p>No subjects available yet. Ask your lecturer to create one.</p>';
+                    return;
+                }
+                listContainer.innerHTML = '';
+                data.forEach(sub => {
+                    const card = document.createElement('div');
+                    card.className = 'subject-card';
+                    card.innerHTML = `<h3>${sub.subjectName}</h3><p>Click to Start</p>`;
+                    card.onclick = () => startQuiz(sub.id);
+                    listContainer.appendChild(card);
+                });
+            } catch (err) {
+                listContainer.innerHTML = '<p style="color:red;">Could not connect to server. Please refresh and try again.</p>';
+            }
+        }
+
+        async function startQuiz(quizId) {
+            try {
+                const res = await fetch(`/api/quizzes/${quizId}?username=${encodeURIComponent(user.username)}`);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showToast(data.error || 'Failed to load subject.', 'error');
+                    return;
+                }
+
+                if (data.alreadyTaken) {
+                    showToast(`Already taken! Your score: ${data.result.score}/${data.result.totalQuestions} (${data.result.percentage}%).`, 'warning');
+                    return;
+                }
+
+                currentQuiz = data;
+                timeLeft = currentQuiz.durationInSeconds;
+
+                const saved = localStorage.getItem(`quiz_answers_${currentQuiz.id}_${user.username}`);
+                if (saved) userAnswers = JSON.parse(saved);
+                else userAnswers = {};
+
+                document.getElementById('subjectListArea').classList.add('hidden');
+                document.getElementById('logoutBtn').classList.add('hidden');
+                document.getElementById('quizArea').classList.remove('hidden');
+                document.getElementById('timer').classList.remove('hidden');
+                document.getElementById('quizTitle').innerText = `Subject: ${currentQuiz.subjectName}`;
+
+                currentQuestionIndex = 0;
+                renderQuestion();
+                startTimer();
+            } catch (err) {
+                showToast('Network error. Please try again.', 'error');
+            }
+        }
+
+        function renderDots() {
+            const container = document.getElementById('dotIndicators');
+            container.innerHTML = '';
+            currentQuiz.questions.forEach((q, idx) => {
+                const dot = document.createElement('span');
+                dot.className = 'q-dot';
+                if (idx === currentQuestionIndex) dot.classList.add('current');
+                else if (userAnswers[q.id] !== undefined) dot.classList.add('answered');
+                dot.onclick = () => { currentQuestionIndex = idx; renderQuestion(); };
+                container.appendChild(dot);
+            });
+        }
+
+        function renderQuestion() {
+            const total = currentQuiz.questions.length;
+            const current = currentQuestionIndex + 1;
+            document.getElementById('progressLabel').innerText = `Question ${current} of ${total}`;
+            document.getElementById('progressBar').style.width = `${(current / total) * 100}%`;
+            renderDots();
+
+            const q = currentQuiz.questions[currentQuestionIndex];
+            let html = `<div class="question-card"><h3>Question ${current}: ${q.text}</h3>`;
+            q.options.forEach((opt, idx) => {
+                const isChecked = userAnswers[q.id] === idx ? 'checked' : '';
+                html += `
+                    <label class="option-label">
+                        <input type="radio" name="q_${q.id}" value="${idx}" ${isChecked} onchange="saveAnswer('${q.id}', ${idx})">
+                        ${opt}
+                    </label>`;
+            });
+            html += `</div>`;
+            document.getElementById('questionContainer').innerHTML = html;
+
+            document.getElementById('prevBtn').disabled = currentQuestionIndex === 0;
+            document.getElementById('nextBtn').disabled = currentQuestionIndex === currentQuiz.questions.length - 1;
+        }
+
+        function changeQuestion(direction) {
+            currentQuestionIndex += direction;
+            renderQuestion();
+        }
+
+        function saveAnswer(questionId, optionIndex) {
+            userAnswers[questionId] = optionIndex;
+            localStorage.setItem(`quiz_answers_${currentQuiz.id}_${user.username}`, JSON.stringify(userAnswers));
+            renderDots();
+        }
+
+        function startTimer() {
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    showToast('Time is up! Your quiz has been submitted.', 'warning');
+                    submitQuiz(true);
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const s = (timeLeft % 60).toString().padStart(2, '0');
+            const timerEl = document.getElementById('timer');
+            timerEl.innerText = `Time Left: ${m}:${s}`;
+            timerEl.classList.toggle('warning', timeLeft <= 60);
+        }
+
+        async function submitQuiz(auto = false) {
+            clearInterval(timerInterval);
+            const formattedAnswers = Object.keys(userAnswers).map(qId => {
+                const questionIndex = currentQuiz.questions.findIndex(q => q.id === qId);
+                const selectedText = currentQuiz.questions[questionIndex].options[userAnswers[qId]] || "";
+                return { questionId: qId, selectedOptionText: selectedText };
+            });
+
+            try {
+                const res = await fetch('/api/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quizId: currentQuiz.id,
+                        username: user.username,
+                        answers: formattedAnswers
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.removeItem(`quiz_answers_${currentQuiz.id}_${user.username}`);
+                    localStorage.setItem('lastQuizResult', JSON.stringify(data.result));
+                    window.location.href = `results.html?score=${data.result.score}&total=${data.result.totalQuestions}&percentage=${data.result.percentage}&subject=${encodeURIComponent(data.result.subjectName)}`;
+                } else {
+                    showToast(data.error || 'Failed to submit. Please try again.', 'error');
+                }
+            } catch (err) {
+                showToast('Network error while submitting. Please try again.', 'error');
+            }
+        }
+
+        function filterSubjects() {
+            const query = document.getElementById('subjectSearch').value.toLowerCase();
+            document.querySelectorAll('#subjectList .subject-card').forEach(card => {
+                const name = card.querySelector('h3').innerText.toLowerCase();
+                card.style.display = name.includes(query) ? '' : 'none';
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+
+        loadSubjects();
+    </script>
+</body>
+</html>

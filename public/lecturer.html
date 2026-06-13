@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecturer Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="toast.js"></script>
+    <style>
+        .upload-section {
+            background: #f8f9fa;
+            border: 2px dashed #3498db;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .upload-section h3 { margin-top: 0; }
+        .upload-btn {
+            background: #27ae60;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .upload-btn:hover { background: #219150; }
+        .template-btn {
+            background: #e67e22;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .template-btn:hover { background: #d35400; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Create New Subject Quiz</h1>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 20px;">
+            <button class="secondary" onclick="window.location.href='lecturer-scores.html'" style="width: auto; background: #8e44ad;">View Student Scores</button>
+            <button class="secondary" onclick="logout()" style="width: auto;">Logout</button>
+        </div>
+
+        <div class="form-group">
+            <label>Subject Name (e.g., Biology, Math)</label>
+            <input type="text" id="subjectName" placeholder="e.g., Biology">
+        </div>
+        <div class="form-group" style="display: flex; gap: 10px;">
+            <div style="flex: 1;">
+                <label>Time Limit Value</label>
+                <input type="number" id="durationValue" value="10" min="1">
+            </div>
+            <div style="flex: 1;">
+                <label>Time Unit</label>
+                <select id="timeUnit">
+                    <option value="seconds">Seconds</option>
+                    <option value="minutes" selected>Minutes</option>
+                    <option value="hours">Hours</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="upload-section">
+            <h3>Bulk Upload Questions (Optional)</h3>
+            <p style="font-size: 14px; color: #666;">
+                Have your questions in Excel? Save it as a <b>.csv</b> file and upload it here!
+            </p>
+            <button class="template-btn" onclick="downloadTemplate()">📥 Download CSV Template</button>
+            <input type="file" id="csvFile" accept=".csv" style="display: none;" onchange="handleFileUpload(event)">
+            <button class="upload-btn" onclick="document.getElementById('csvFile').click()">📤 Upload CSV File</button>
+        </div>
+
+        <h3>Questions (Add manually or upload above)</h3>
+        <div id="questionsContainer"></div>
+        <button class="secondary" onclick="addQuestionField()">+ Add Question Manually</button>
+        <br><br>
+        <button id="publishBtn" onclick="publishQuiz()">Publish Subject Quiz</button>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role !== 'lecturer') window.location.href = 'index.html';
+
+        let questionCount = 0;
+
+        function addQuestionField() {
+            questionCount++;
+            const div = document.createElement('div');
+            div.className = 'question-card';
+            div.innerHTML = `
+                <label>Question ${questionCount}</label>
+                <input type="text" class="q-text" placeholder="Enter question text">
+                <input type="text" class="q-opt" placeholder="Option A">
+                <input type="text" class="q-opt" placeholder="Option B">
+                <input type="text" class="q-opt" placeholder="Option C">
+                <input type="text" class="q-opt" placeholder="Option D">
+                <label>Correct Option</label>
+                <select class="q-correct">
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                </select>
+            `;
+            document.getElementById('questionsContainer').appendChild(div);
+        }
+
+        function downloadTemplate() {
+            const csvContent = "Question,Option A,Option B,Option C,Option D,Correct Option\nWhat is the capital of France?,London,Paris,Berlin,Madrid,B\nWhich planet is closest to the sun?,Earth,Mars,Mercury,Venus,C";
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.setAttribute("href", URL.createObjectURL(blob));
+            link.setAttribute("download", "quiz_template.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const lines = e.target.result.split('\n').filter(l => l.trim() !== '');
+                if (lines.length < 2) {
+                    showToast('The file is empty or missing the header row.', 'error');
+                    return;
+                }
+                let loaded = 0;
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = parseCSVLine(lines[i]);
+                    if (cols.length >= 6) {
+                        addQuestionField();
+                        const cards = document.querySelectorAll('.question-card');
+                        const last = cards[cards.length - 1];
+                        last.querySelector('.q-text').value = cols[0];
+                        last.querySelectorAll('.q-opt')[0].value = cols[1];
+                        last.querySelectorAll('.q-opt')[1].value = cols[2];
+                        last.querySelectorAll('.q-opt')[2].value = cols[3];
+                        last.querySelectorAll('.q-opt')[3].value = cols[4];
+                        last.querySelector('.q-correct').value = cols[5].trim().toUpperCase();
+                        loaded++;
+                    }
+                }
+                showToast(`Loaded ${loaded} question${loaded !== 1 ? 's' : ''}!`, 'success');
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let start = 0;
+            let inQuote = false;
+            for (let i = 0; i < line.length; i++) {
+                if (line[i] === '"') inQuote = !inQuote;
+                else if (line[i] === ',' && !inQuote) {
+                    result.push(line.substring(start, i).replace(/^"|"$/g, '').trim());
+                    start = i + 1;
+                }
+            }
+            result.push(line.substring(start).replace(/^"|"$/g, '').trim());
+            return result;
+        }
+
+        async function publishQuiz() {
+            const subjectName = document.getElementById('subjectName').value.trim();
+            if (!subjectName) {
+                showToast('Please enter a subject name.', 'error');
+                return;
+            }
+
+            const durationValue = document.getElementById('durationValue').value;
+            if (!durationValue || parseInt(durationValue) < 1) {
+                showToast('Please enter a valid time limit.', 'error');
+                return;
+            }
+
+            const qCards = document.querySelectorAll('.question-card');
+            if (qCards.length === 0) {
+                showToast('Please add at least one question.', 'error');
+                return;
+            }
+
+            const questions = [];
+            let valid = true;
+            qCards.forEach((card, i) => {
+                const text = card.querySelector('.q-text').value.trim();
+                const opts = Array.from(card.querySelectorAll('.q-opt')).map(o => o.value.trim());
+                if (!text) {
+                    showToast(`Question ${i + 1} is missing question text.`, 'error');
+                    valid = false;
+                    return;
+                }
+                if (opts.some(o => !o)) {
+                    showToast(`Question ${i + 1} has an empty option.`, 'error');
+                    valid = false;
+                    return;
+                }
+                questions.push({
+                    text,
+                    options: opts,
+                    correctOptionLetter: card.querySelector('.q-correct').value
+                });
+            });
+            if (!valid) return;
+
+            const btn = document.getElementById('publishBtn');
+            btn.disabled = true;
+            btn.textContent = 'Publishing...';
+
+            try {
+                const res = await fetch('/api/quizzes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subjectName,
+                        durationValue,
+                        timeUnit: document.getElementById('timeUnit').value,
+                        questions
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`"${data.subjectName}" published successfully!`, 'success');
+                    document.getElementById('subjectName').value = '';
+                    document.getElementById('questionsContainer').innerHTML = '';
+                    questionCount = 0;
+                    addQuestionField();
+                } else {
+                    showToast(data.error || 'Failed to publish. Is the database connected?', 'error');
+                }
+            } catch (err) {
+                showToast('Network error. Please check your connection and try again.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Publish Subject Quiz';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+
+        addQuestionField();
+    </script>
+</body>
+</html>

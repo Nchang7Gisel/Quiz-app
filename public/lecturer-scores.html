@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecturer - Student Scores</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="toast.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Student Scores Dashboard</h1>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 16px;">
+            <button class="secondary" onclick="window.location.href='lecturer.html'" style="width: auto; background: #8e44ad;">Back to Create Quiz</button>
+            <button class="secondary" onclick="logout()" style="width: auto;">Logout</button>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tabSubjects" onclick="switchTab('subjects')">By Subject</button>
+            <button class="tab-btn" id="tabLeaderboard" onclick="switchTab('leaderboard')">🏆 Leaderboard</button>
+        </div>
+
+        <div id="subjectsPanel">
+            <div id="subjectsView">
+                <h3>Select a Subject to View Scores</h3>
+                <div id="subjectList" class="subject-list">Loading subjects...</div>
+            </div>
+            <div id="scoresView" class="hidden">
+                <button class="secondary" onclick="showSubjectsList()" style="width: auto; margin-bottom: 20px;">&larr; Back to Subjects</button>
+                <h3 id="selectedSubjectTitle" style="text-align: center; color: #3498db;"></h3>
+                <div id="scoresTableContainer"></div>
+            </div>
+        </div>
+
+        <div id="leaderboardPanel" class="hidden">
+            <div id="leaderboardContainer"><p style="text-align:center;color:#7f8c8d;">Loading leaderboard...</p></div>
+        </div>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role !== 'lecturer') window.location.href = 'index.html';
+
+        function switchTab(tab) {
+            const isSubjects = tab === 'subjects';
+            document.getElementById('tabSubjects').classList.toggle('active', isSubjects);
+            document.getElementById('tabLeaderboard').classList.toggle('active', !isSubjects);
+            document.getElementById('subjectsPanel').classList.toggle('hidden', !isSubjects);
+            document.getElementById('leaderboardPanel').classList.toggle('hidden', isSubjects);
+            if (!isSubjects) loadLeaderboard();
+        }
+
+        async function loadSubjects() {
+            const listContainer = document.getElementById('subjectList');
+            try {
+                const res = await fetch('/api/quizzes');
+                const data = await res.json();
+                if (!res.ok) {
+                    listContainer.innerHTML = `<p style="color:red;">Error: ${data.error || 'Failed to load subjects.'}</p>`;
+                    return;
+                }
+                if (!Array.isArray(data) || data.length === 0) {
+                    listContainer.innerHTML = '<p>No subjects created yet.</p>';
+                    return;
+                }
+                listContainer.innerHTML = '';
+                data.forEach(sub => {
+                    const card = document.createElement('div');
+                    card.className = 'subject-card';
+                    card.style.position = 'relative';
+                    card.innerHTML = `
+                        <h3>${sub.subjectName}</h3>
+                        <p>Click to view scores</p>
+                        <button class="delete-btn" title="Delete subject">🗑 Delete</button>
+                    `;
+                    card.onclick = () => loadScores(sub.id, sub.subjectName);
+                    card.querySelector('.delete-btn').onclick = (e) => {
+                        e.stopPropagation();
+                        deleteQuiz(sub.id, sub.subjectName, card);
+                    };
+                    listContainer.appendChild(card);
+                });
+            } catch (err) {
+                listContainer.innerHTML = '<p style="color:red;">Could not connect to server. Please refresh and try again.</p>';
+            }
+        }
+
+        async function loadScores(quizId, subjectName) {
+            try {
+                const res = await fetch(`/api/submissions/${quizId}`);
+                const submissions = await res.json();
+
+                document.getElementById('subjectsView').classList.add('hidden');
+                document.getElementById('scoresView').classList.remove('hidden');
+                document.getElementById('selectedSubjectTitle').innerText = `Scores for: ${subjectName}`;
+
+                const container = document.getElementById('scoresTableContainer');
+                if (!res.ok) {
+                    container.innerHTML = `<p style="color:red;">${submissions.error || 'Failed to load scores.'}</p>`;
+                    return;
+                }
+                if (!Array.isArray(submissions) || submissions.length === 0) {
+                    container.innerHTML = '<p style="text-align:center;color:#7f8c8d;">No students have taken this subject yet.</p>';
+                    return;
+                }
+
+                let tableHTML = `
+                    <table class="scores-table">
+                        <thead><tr>
+                            <th>Student Name</th><th>Score</th><th>Percentage</th><th>Status</th><th>Date Submitted</th>
+                        </tr></thead><tbody>`;
+                submissions.forEach(sub => {
+                    const statusClass = sub.percentage >= 50 ? 'pass' : 'fail';
+                    const statusText = sub.percentage >= 50 ? 'Passed' : 'Failed';
+                    const date = new Date(sub.submittedAt).toLocaleDateString() + ' ' + new Date(sub.submittedAt).toLocaleTimeString();
+                    tableHTML += `<tr>
+                        <td>${sub.username}</td>
+                        <td>${sub.score} / ${sub.totalQuestions}</td>
+                        <td>${sub.percentage}%</td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${date}</td>
+                    </tr>`;
+                });
+                tableHTML += `</tbody></table>`;
+                container.innerHTML = tableHTML;
+            } catch (err) {
+                showToast('Network error loading scores. Please try again.', 'error');
+            }
+        }
+
+        function showSubjectsList() {
+            document.getElementById('scoresView').classList.add('hidden');
+            document.getElementById('subjectsView').classList.remove('hidden');
+        }
+
+        async function loadLeaderboard() {
+            const container = document.getElementById('leaderboardContainer');
+            container.innerHTML = '<p style="text-align:center;color:#7f8c8d;">Loading...</p>';
+            try {
+                const res = await fetch('/api/quizzes');
+                const quizzes = await res.json();
+                if (!res.ok || !Array.isArray(quizzes) || quizzes.length === 0) {
+                    container.innerHTML = '<p style="text-align:center;color:#7f8c8d;">No subjects created yet.</p>';
+                    return;
+                }
+
+                const allSubs = await Promise.all(
+                    quizzes.map(q => fetch(`/api/submissions/${q.id}`).then(r => r.json()))
+                );
+
+                const studentMap = {};
+                allSubs.forEach(subs => {
+                    if (!Array.isArray(subs)) return;
+                    subs.forEach(sub => {
+                        if (!studentMap[sub.username]) studentMap[sub.username] = { totalScore: 0, totalQuestions: 0, subjects: 0 };
+                        studentMap[sub.username].totalScore += sub.score;
+                        studentMap[sub.username].totalQuestions += sub.totalQuestions;
+                        studentMap[sub.username].subjects++;
+                    });
+                });
+
+                if (Object.keys(studentMap).length === 0) {
+                    container.innerHTML = '<p style="text-align:center;color:#7f8c8d;">No submissions yet.</p>';
+                    return;
+                }
+
+                const medals = ['🥇', '🥈', '🥉'];
+                const ranked = Object.entries(studentMap)
+                    .map(([name, d]) => ({
+                        name,
+                        avg: Math.round((d.totalScore / d.totalQuestions) * 100),
+                        subjects: d.subjects,
+                        totalScore: d.totalScore,
+                        totalQuestions: d.totalQuestions
+                    }))
+                    .sort((a, b) => b.avg - a.avg);
+
+                let html = `<table class="leaderboard-table">
+                    <thead><tr><th>Rank</th><th>Student</th><th>Avg Score</th><th>Total Correct</th><th>Subjects Taken</th></tr></thead>
+                    <tbody>`;
+                ranked.forEach((s, i) => {
+                    const rank = i < 3 ? `<span class="rank-medal">${medals[i]}</span>` : `#${i + 1}`;
+                    const rowClass = i === 0 ? 'class="gold"' : '';
+                    html += `<tr ${rowClass}>
+                        <td>${rank}</td>
+                        <td><strong>${s.name}</strong></td>
+                        <td>${s.avg}%</td>
+                        <td>${s.totalScore} / ${s.totalQuestions}</td>
+                        <td>${s.subjects}</td>
+                    </tr>`;
+                });
+                html += `</tbody></table>`;
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = '<p style="color:red;">Could not load leaderboard. Please try again.</p>';
+            }
+        }
+
+        async function deleteQuiz(quizId, subjectName, cardEl) {
+            if (!confirm(`Delete "${subjectName}" and all its student scores? This cannot be undone.`)) return;
+            try {
+                const res = await fetch(`/api/quizzes/${quizId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    cardEl.remove();
+                    showToast(`"${subjectName}" deleted successfully.`, 'success');
+                    const remaining = document.querySelectorAll('#subjectList .subject-card');
+                    if (remaining.length === 0) {
+                        document.getElementById('subjectList').innerHTML = '<p>No subjects created yet.</p>';
+                    }
+                } else {
+                    showToast(data.error || 'Failed to delete subject.', 'error');
+                }
+            } catch (err) {
+                showToast('Network error. Please try again.', 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+
+        loadSubjects();
+    </script>
+</body>
+</html>

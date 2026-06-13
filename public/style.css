@@ -1,0 +1,199 @@
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+.container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+h1, h2 { color: #2c3e50; text-align: center; }
+.form-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-weight: bold; }
+input, select, button { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+button { background: #3498db; color: white; border: none; cursor: pointer; font-size: 16px; transition: background 0.3s; }
+button:hover { background: #2980b9; }
+button.danger { background: #e74c3c; }
+button.danger:hover { background: #c0392b; }
+button.secondary { background: #95a5a6; }
+.question-card { border: 1px solid #eee; padding: 15px; margin-bottom: 15px; border-radius: 5px; background: #fafafa; }
+.option-label { display: block; padding: 8px; background: #fff; border: 1px solid #ddd; margin-bottom: 5px; border-radius: 4px; cursor: pointer; }
+.option-label:hover { background: #eef2f5; }
+.option-label input { width: auto; margin-right: 10px; margin-bottom: 0; }
+.timer { position: fixed; top: 20px; right: 20px; background: #e67e22; color: white; padding: 10px 20px; border-radius: 5px; font-weight: bold; font-size: 18px; z-index: 1000; transition: background 0.3s; }
+.timer.warning { background: #e74c3c; animation: timerPulse 0.8s ease-in-out infinite; }
+@keyframes timerPulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231,76,60,0.6); } 50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(231,76,60,0); } }
+.progress-label { font-weight: bold; color: #2c3e50; margin-bottom: 6px; font-size: 14px; }
+.progress-bar-track { background: #e0e0e0; border-radius: 20px; height: 10px; margin-bottom: 10px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: #3498db; border-radius: 20px; transition: width 0.3s ease; }
+.dot-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.q-dot { width: 14px; height: 14px; border-radius: 50%; background: #e0e0e0; border: 2px solid #bbb; cursor: pointer; transition: background 0.2s, border-color 0.2s; flex-shrink: 0; }
+.q-dot.answered { background: #3498db; border-color: #2980b9; }
+.q-dot.current { background: white; border-color: #3498db; box-shadow: 0 0 0 2px #3498db; }
+.nav-buttons { display: flex; justify-content: space-between; margin-top: 20px; }
+.nav-buttons button { width: 48%; }
+.hidden { display: none; }
+.result-card { text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; }
+.pass { color: #27ae60; font-weight: bold; }
+.fail { color: #e74c3c; font-weight: bold; }
+.review-item { border-bottom: 1px solid #eee; padding: 10px 0; }
+
+
+.subject-list { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+    gap: 15px; 
+    margin-top: 20px; 
+}
+.subject-card { 
+    background: #3498db; 
+    color: white; 
+    padding: 20px; 
+    border-radius: 8px; 
+    text-align: center; 
+    cursor: pointer; 
+    transition: transform 0.2s; 
+}
+.subject-card:hover { 
+    transform: translateY(-3px); 
+    background: #2980b9; 
+}
+.subject-card h3 { 
+    margin: 0 0 10px 0; 
+    font-size: 18px; 
+}
+.delete-btn {
+    margin-top: 10px;
+    background: rgba(0,0,0,0.25);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 5px;
+    padding: 5px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+    width: auto;
+}
+.delete-btn:hover {
+    background: #e74c3c;
+    border-color: #e74c3c;
+}
+
+
+/* Review Section Styles */
+.review-section {
+    margin-top: 30px;
+    text-align: left;
+    border-top: 2px solid #eee;
+    padding-top: 20px;
+}
+.review-section h3 {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 20px;
+}
+.review-card {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+.review-card.correct {
+    border-left: 5px solid #27ae60;
+}
+.review-card.incorrect {
+    border-left: 5px solid #e74c3c;
+}
+.review-question {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: #333;
+}
+.review-answer {
+    margin: 5px 0;
+    font-size: 14px;
+}
+.text-green { color: #27ae60; font-weight: bold; }
+.text-red { color: #e74c3c; font-weight: bold; }
+
+
+/* Toast Notifications */
+#toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 3000; display: flex; flex-direction: column-reverse; gap: 10px; pointer-events: none; }
+.toast { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-radius: 8px; color: white; font-size: 14px; font-weight: 500; min-width: 280px; max-width: 380px; box-shadow: 0 4px 16px rgba(0,0,0,0.18); transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1); pointer-events: all; }
+.toast.show { transform: translateX(0); }
+.toast-success { background: #27ae60; }
+.toast-error { background: #e74c3c; }
+.toast-warning { background: #e67e22; }
+.toast-info { background: #3498db; }
+.toast button { background: none; border: none; color: white; font-size: 16px; cursor: pointer; padding: 0; width: auto; margin: 0; line-height: 1; opacity: 0.8; flex-shrink: 0; }
+.toast button:hover { opacity: 1; background: none; }
+
+/* Tab Bar */
+.tab-bar { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid #e0e0e0; }
+.tab-btn { padding: 10px 24px; border: none; background: none; font-size: 15px; cursor: pointer; color: #7f8c8d; border-bottom: 3px solid transparent; margin-bottom: -2px; width: auto; transition: color 0.2s, border-color 0.2s; }
+.tab-btn.active { color: #3498db; border-bottom-color: #3498db; font-weight: bold; }
+.tab-btn:hover { color: #3498db; background: none; }
+
+/* Leaderboard */
+.leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+.leaderboard-table th, .leaderboard-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+.leaderboard-table th { background: #2c3e50; color: white; font-weight: bold; }
+.leaderboard-table tr:hover { background: #f9f9f9; }
+.leaderboard-table tr.gold { background: #fffde7; }
+.rank-medal { font-size: 20px; }
+
+/* Scores Table Styles */
+.scores-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.scores-table th, .scores-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+.scores-table th {
+    background-color: #3498db;
+    color: white;
+    font-weight: bold;
+}
+.scores-table tr:hover {
+    background-color: #f9f9f9;
+}
+
+/* ===== Mobile Responsive ===== */
+@media (max-width: 600px) {
+    body { padding: 10px; }
+
+    .container { padding: 16px; border-radius: 6px; }
+
+    h1 { font-size: 20px; }
+    h2 { font-size: 17px; }
+    h3 { font-size: 15px; }
+
+    .timer { top: 10px; right: 10px; padding: 7px 12px; font-size: 14px; border-radius: 4px; }
+
+    .subject-list { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .subject-card { padding: 14px 10px; }
+    .subject-card h3 { font-size: 15px; }
+
+    .scores-table, .leaderboard-table { display: block; overflow-x: auto; white-space: nowrap; font-size: 13px; }
+    .scores-table th, .scores-table td,
+    .leaderboard-table th, .leaderboard-table td { padding: 8px 10px; }
+
+    .tab-btn { padding: 8px 14px; font-size: 13px; }
+
+    .nav-buttons button { font-size: 13px; padding: 8px; }
+
+    .review-question { font-size: 14px; }
+    .review-answer { font-size: 13px; }
+
+    #toast-container { left: 10px; right: 10px; bottom: 10px; }
+    .toast { min-width: unset; max-width: 100%; width: 100%; box-sizing: border-box; }
+
+    .result-card { padding: 14px; }
+}
+
+@media (max-width: 400px) {
+    .subject-list { grid-template-columns: 1fr; }
+    h1 { font-size: 17px; }
+    .tab-btn { padding: 6px 10px; font-size: 12px; }
+}
